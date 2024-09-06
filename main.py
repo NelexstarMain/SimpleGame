@@ -3,14 +3,13 @@ import pygame
 import time
 import json
 import os
-
 import pygame.locals
 import lib.config.default as config
 
 class Player:
     def __init__(self) -> None:
-        self.x = 385
-        self.y = 285
+        self.x = 100
+        self.y = 100
         self.width = 30
         self.height = 30
         self.skin = pygame.image.load(os.path.join(config.PATH_ASSETS, "skin_1.png"))
@@ -20,12 +19,14 @@ class Player:
         self.jump_on: bool = False
         self.change_x = 0
         self.change_y = 0
+        self.xcol = 0
+
         
     def jump(self) -> None:
         if not self.jump_on:
             self.jump_on = True
             self.jump_speed = 20
-    
+                
     def jump_down(self) -> None:
         self.jump_down_on = True
         self.jump_on = False
@@ -217,48 +218,74 @@ class Game:
                 if self.level_map[x][y] == 4:
                     self.starting_pos = (x, y)
                     
-    def collisions(self, rect: pygame.Rect):
+    def collision_down(self, rect: pygame.Rect):
         for y in range(20):
             for x in range(self.length):
-                if self.level_map[y][x] > 0 :
-                    block_rect = pygame.Rect((x*30+self.player.change_x, y * 30, 30, 30))
-                    if rect.colliderect(block_rect):
+                if self.level_map[y][x] > 0:
+                    block_rect = pygame.Rect((x * 30 + self.player.change_x, y * 30, 30, 30))
+                    block_rect_top = pygame.Rect((x * 30 + self.player.change_x, y * 30, 29, 1))
+                    if rect.colliderect(block_rect_top):
                         return block_rect
-                        
         return False
+
+    def collision_right(self, rect: pygame.Rect):
+        for y in range(20):
+            for x in range(self.length):
+                if self.level_map[y][x] > 0:
+                    block_rect = pygame.Rect((x * 30 + self.player.change_x, y * 30, 30, 30))
+                    block_rect_left = pygame.Rect((x * 30 + self.player.change_x, y * 30, 1, 29))
+                    if rect.colliderect(block_rect_left):
+                        return block_rect
+        return False
+    
     def draw_map(self) -> None:
         for y in range(20):
             for x in range(self.length):
                 if self.level_map[y][x] > 0:
-                    pygame.draw.rect(self.editing_screen, (255, 255, 255), ((x*30+self.player.change_x, y * 30, 30, 30)))
-                    self.editing_screen.blit(pygame.image.load(os.path.join(config.PATH_ASSETS, "blocks", f"{self.level_map[y][x]}.png")), (x*30+self.player.change_x, y * 30))
+                    if x == self.player.xcol:
+                        
+                        pygame.draw.rect(self.editing_screen, (255, 255, 255), ((x*30+self.player.change_x, y * 30, 30, 30)))
+                    else:
+                        pygame.draw.rect(self.editing_screen, (255, 255, 255), ((x*30+self.player.change_x, y * 30, 30, 30)))
+                        self.editing_screen.blit(pygame.image.load(os.path.join(config.PATH_ASSETS, "blocks", f"{self.level_map[y][x]}.png")), (x*30+self.player.change_x, y * 30))
                     
     def draw(self) -> None:
         self.draw_map()
         self.editing_screen.blit(self.player.skin, self.player.body.topleft)
+        
 
     def loop(self) -> None:
         while True:
             self.editing_screen.fill((0, 0, 0))
             self.draw()
-            self.player.change_x -= 2
+            self.player.change_x -= 3
+            self.player.body.y += 8
             self.player.update()
             
-            colision = self.collisions(self.player.body)
-            print(colision)
-            if colision is not False:
-                if self.player.jump_down_on:
-                    self.player.jump_down_on = False
-                    if colision.y > self.player.body.y:
-                        self.player.body.bottom = colision.top
-                        pygame.draw.rect(self.editing_screen, (255, 0, 0), colision)
-                    elif colision.y > self.player.body.y and colision.x > self.player.body.x:
-                        self.player.body.right = colision.left
-                        pygame.draw.rect(self.editing_screen, (255, 0, 0), colision)
-                else:
-                    if colision.y == self.player.body.y and colision.x > self.player.body.x:
-                        self.player.body.right = colision.left
-                        pygame.draw.rect(self.editing_screen, (255, 0, 0), colision)
+            colision_down = self.collision_down(self.player.body)
+            if colision_down:
+                if colision_down.y > self.player.body.y:
+                    if self.player.jump_down_on:
+                        self.player.jump_down_on = False
+                    self.player.body.bottom = colision_down.top
+                    pygame.draw.rect(self.editing_screen, (255, 0, 0), colision_down)
+                    
+            colision_right = self.collision_right(self.player.body)        
+            if colision_right:
+                if colision_right.y > self.player.body.y and colision_right.x > self.player.body.x:
+                    if self.player.jump_down_on:
+                        self.player.jump_down_on = False
+                    self.player.body.right = colision_right.left
+                    pygame.draw.rect(self.editing_screen, (255, 0, 0), colision_right)
+                                                
+                elif colision_right.y == self.player.body.y and colision_right.x > self.player.body.x:
+                    self.player.body.right = colision_right.left
+                    pygame.draw.rect(self.editing_screen, (255, 0, 0), colision_right)
+                
+
+                    
+                    
+                    
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
